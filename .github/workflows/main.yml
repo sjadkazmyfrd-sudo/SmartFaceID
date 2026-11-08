@@ -10,17 +10,22 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v4
+      uses: setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Generate Gradle Wrapper (Fixed Version 8.0)
-      run: |
-        gradle wrapper --gradle-version 8.0
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
     - name: Build Debug APK
+      run: ./gradlew assembleDebug
+      continue-on-error: true
+
+    - name: Fallback Build if wrapper missing
+      if: failure()
       run: |
+        gradle wrapper --gradle-version 8.0
         chmod +x gradlew
         ./gradlew assembleDebug
 
