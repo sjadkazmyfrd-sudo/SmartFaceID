@@ -18,14 +18,12 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
-      continue-on-error: true
-
-    - name: Fallback Build if wrapper missing
-      if: failure()
+    - name: Generate Gradle Wrapper
       run: |
         gradle wrapper --gradle-version 8.0
+
+    - name: Build Debug APK
+      run: |
         chmod +x gradlew
         ./gradlew assembleDebug
 
