@@ -1,8 +1,6 @@
 plugins {
-    // AGP has Kotlin built in, so the separate Kotlin plugin is not needed.
-    id("com.android.application")
+    id("com.android.application") version "9.1.0" apply false
 }
-
 android {
     namespace = "com.example.smartfaceid"
     compileSdk = 37
