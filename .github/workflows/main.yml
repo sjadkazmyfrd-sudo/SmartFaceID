@@ -15,13 +15,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Gradle with Stable Version
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.2'
-
-    - name: Build Debug APK Directly
-      run: gradle assembleDebug
+    - name: Generate Gradle Wrapper and Build APK
+      run: |
+        gradle wrapper --gradle-version 8.2
+        chmod +x gradlew
+        ./gradlew assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
