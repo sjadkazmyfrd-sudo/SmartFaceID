@@ -15,11 +15,15 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Generate Gradle Wrapper with Fixed Version and Build
+    - name: Install Gradle 8.2 Manually
       run: |
-        gradle wrapper --gradle-version 8.2 --distribution-type bin
-        chmod +x gradlew
-        ./gradlew assembleDebug
+        wget https://services.gradle.org/distributions/gradle-8.2-bin.zip
+        unzip gradle-8.2-bin.zip
+        sudo mv gradle-8.2 /opt/gradle
+        echo "/opt/gradle/bin" >> $GITHUB_PATH
+
+    - name: Build Debug APK
+      run: gradle assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
