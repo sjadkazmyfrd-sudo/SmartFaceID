@@ -15,9 +15,12 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install Gradle and Build APK
+    - name: Generate Gradle Wrapper (Fixed Version 8.0)
       run: |
-        gradle wrapper
+        gradle wrapper --gradle-version 8.0
+
+    - name: Build Debug APK
+      run: |
         chmod +x gradlew
         ./gradlew assembleDebug
 
