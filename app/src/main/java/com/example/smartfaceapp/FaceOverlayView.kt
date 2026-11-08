@@ -1,4 +1,4 @@
-package com.example.smartfaceapp
+package com.example.smartfaceid
 
 import android.content.Context
 import android.graphics.Canvas
@@ -15,12 +15,6 @@ class FaceOverlayView(context: Context, attrs: AttributeSet?) : View(context, at
 
     private val boxPaint = Paint().apply {
         color = Color.GREEN
-        style = Paint.Style.STROKE
-        strokeWidth = 6f
-    }
-
-    private val unknownBoxPaint = Paint().apply {
-        color = Color.RED
         style = Paint.Style.STROKE
         strokeWidth = 6f
     }
@@ -44,16 +38,11 @@ class FaceOverlayView(context: Context, attrs: AttributeSet?) : View(context, at
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         for (face in faces) {
-            val isUnknown = face.name == "Unknown"
-            val paint = if (isUnknown) unknownBoxPaint else boxPaint
-
-            canvas.drawRect(face.boundingBox, paint)
-
+            canvas.drawRect(face.boundingBox, boxPaint)
             val textWidth = textPaint.measureText(face.name)
-            val textHeight = 50f
             val bgRect = RectF(
                 face.boundingBox.left,
-                face.boundingBox.top - textHeight - 10f,
+                face.boundingBox.top - 60f,
                 face.boundingBox.left + textWidth + 20f,
                 face.boundingBox.top
             )
