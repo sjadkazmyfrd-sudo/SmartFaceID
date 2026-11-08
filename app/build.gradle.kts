@@ -52,5 +52,5 @@ dependencies {
     implementation("androidx.camera:camera-extensions:$camerax")
 
     // Google ML Kit Face Detection
-    implementation("com.google.mlkit:face-detection:16.15.0")
+    implementation("com.google.mlkit:face-detection:16.1.7")
 }
