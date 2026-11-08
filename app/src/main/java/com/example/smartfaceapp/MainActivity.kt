@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var viewFinder: PreviewView
     private lateinit var faceOverlay: FaceOverlayView
     private lateinit var edtNameInput: EditText
@@ -53,33 +54,44 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        if (allPermissionsGranted()) startCamera()
-        else ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 10)
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 10)
+        }
     }
 
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
-            val preview = Preview.Builder().build().also { it.setSurfaceProvider(viewFinder.surfaceProvider) }
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(viewFinder.surfaceProvider)
+            }
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
-                .also { it.setAnalyzer(cameraExecutor, FaceAnalyzer()) }
+                .also {
+                    it.setAnalyzer(cameraExecutor, FaceAnalyzer())
+                }
+
+            val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_FRONT_CAMERA, preview, imageAnalyzer)
+                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer)
             } catch (exc: Exception) {}
         }, ContextCompat.getMainExecutor(this))
     }
 
     private inner class FaceAnalyzer : ImageAnalysis.Analyzer {
-        private val detector = FaceDetection.getClient(
-            FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-                .build()
-        )
+        private val options = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+            .build()
+
+        private val detector = FaceDetection.getClient(options)
 
         @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
         override fun analyze(imageProxy: ImageProxy) {
@@ -92,6 +104,7 @@ class MainActivity : AppCompatActivity() {
                 detector.process(image)
                     .addOnSuccessListener { faces ->
                         val detectedList = mutableListOf<DetectedFaceInfo>()
+
                         for (face in faces) {
                             val currentCaptureName = captureNextFaceName
                             if (currentCaptureName != null) {
@@ -105,13 +118,17 @@ class MainActivity : AppCompatActivity() {
                                     captureNextFaceName = null
                                 }
                             }
+
                             val matchedName = identifyFace(face)
                             val box = scaleRect(face.boundingBox, imageWidth, imageHeight, viewFinder.width, viewFinder.height)
                             detectedList.add(DetectedFaceInfo(box, matchedName))
                         }
+
                         faceOverlay.setFaces(detectedList)
                     }
-                    .addOnCompleteListener { imageProxy.close() }
+                    .addOnCompleteListener {
+                        imageProxy.close()
+                    }
             } else {
                 imageProxy.close()
             }
@@ -119,14 +136,14 @@ class MainActivity : AppCompatActivity() {
 
         private fun extractLandmarks(face: Face): Map<Int, android.graphics.PointF> {
             val map = mutableMapOf<Int, android.graphics.PointF>()
-            val types = listOf(
+            val landmarkTypes = listOf(
                 com.google.mlkit.vision.face.FaceLandmark.LEFT_EYE,
                 com.google.mlkit.vision.face.FaceLandmark.RIGHT_EYE,
                 com.google.mlkit.vision.face.FaceLandmark.NOSE_BASE,
                 com.google.mlkit.vision.face.FaceLandmark.MOUTH_LEFT,
                 com.google.mlkit.vision.face.FaceLandmark.MOUTH_RIGHT
             )
-            for (type in types) {
+            for (type in landmarkTypes) {
                 face.getLandmark(type)?.let { landmark ->
                     val x = (landmark.position.x - face.boundingBox.left) / face.boundingBox.width()
                     val y = (landmark.position.y - face.boundingBox.top) / face.boundingBox.height()
@@ -150,7 +167,8 @@ class MainActivity : AppCompatActivity() {
                 for ((type, pt) in reg.landmarks) {
                     val currPt = currentLandmarks[type]
                     if (currPt != null) {
-                        totalDiff += kotlin.math.hypot((currPt.x - pt.x).toDouble(), (currPt.y - pt.y).toDouble()).toFloat()
+                        val diff = kotlin.math.hypot((currPt.x - pt.x).toDouble(), (currPt.y - pt.y).toDouble()).toFloat()
+                        totalDiff += diff
                         count++
                     }
                 }
@@ -158,7 +176,9 @@ class MainActivity : AppCompatActivity() {
                     val avgDiff = totalDiff / count
                     if (avgDiff < minDistance) {
                         minDistance = avgDiff
-                        if (avgDiff < 0.18f) bestMatchName = reg.name
+                        if (avgDiff < 0.16f) { // Strict threshold for high precision
+                            bestMatchName = reg.name
+                        }
                     }
                 }
             }
@@ -168,16 +188,26 @@ class MainActivity : AppCompatActivity() {
         private fun scaleRect(rect: android.graphics.Rect, imgW: Float, imgH: Float, viewW: Int, viewH: Int): RectF {
             val scaleX = viewW.toFloat() / imgH
             val scaleY = viewH.toFloat() / imgW
-            return RectF(viewW - (rect.bottom * scaleX), rect.left * scaleY, viewW - (rect.top * scaleX), rect.bottom * scaleY)
+            val left = rect.top * scaleX
+            val top = rect.left * scaleY
+            val right = rect.bottom * scaleX
+            val bottom = rect.right * scaleY
+            return RectF(viewW - right, top, viewW - left, bottom)
         }
     }
 
-    private fun allPermissionsGranted() = ContextCompat.checkSelfPermission(baseContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    private fun allPermissionsGranted() = ContextCompat.checkSelfPermission(
+        baseContext, Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 10 && allPermissionsGranted()) startCamera()
-        else { Toast.makeText(this, "Camera permission required.", Toast.LENGTH_SHORT).show(); finish() }
+        if (requestCode == 10 && allPermissionsGranted()) {
+            startCamera()
+        } else {
+            Toast.makeText(this, "Camera permission is required.", Toast.LENGTH_SHORT).show()
+            finish()
+        }
     }
 
     override fun onDestroy() {
